@@ -5,7 +5,9 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,13 +18,18 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -31,7 +38,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -179,6 +188,9 @@ fun StudentListScreen() {
                         student = student,
                         onDelete = {
                             students.remove((student))
+                        },
+                        onEdit = {editedStudent ->
+                            students[students.indexOf(student)] = editedStudent
                         }
                     )
                 }
@@ -188,8 +200,24 @@ fun StudentListScreen() {
 }
 
 @Composable
-fun StudentCard(student: Student, onDelete:() -> Unit) {
+fun StudentCard(student: Student, onDelete:() -> Unit, onEdit: (Student) -> Unit) {
     var showDeleteDialog: Boolean by remember {
+        mutableStateOf(false)
+    }
+    var showEditDialog: Boolean by remember {
+        mutableStateOf(false)
+    }
+
+    var editName: String by remember {
+        mutableStateOf(student.name)
+    }
+    var editClassName: String by remember {
+        mutableStateOf(student.className)
+    }
+    var editNameError: Boolean by remember {
+        mutableStateOf(false)
+    }
+    var editClassNameError: Boolean by remember {
         mutableStateOf(false)
     }
     Card(
@@ -216,11 +244,139 @@ fun StudentCard(student: Student, onDelete:() -> Unit) {
                     style = MaterialTheme.typography.titleMedium,
                 )
             }
+            IconButton(
+                onClick = {
+                    showDeleteDialog = true
+                }
+            ) {
+                Icon(painter = painterResource(
+                    id = R.drawable.delete_icon
+                ), contentDescription = "Diák törlése")
+            }
+            IconButton(
+                onClick = {
+                    showEditDialog = true
+                    editName = student.name
+                    editClassName = student.className
+                    editNameError = false
+                    editClassNameError = false
+                }
+            ) {
+                Icon(painter = painterResource(
+                    id = R.drawable.edit_icon
+                ), contentDescription = "Diák szerkeztése")
+            }
         }
+    }
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Törlés megerősítése") },
+            text = { Text("Biztosan törölni szeretnéd ${student.name} nevű diákot?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        onDelete()
+                    }
+                ) {
+                    Text("Törlés")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteDialog = false }
+                ) {
+                    Text("Mégsem")
+                }
+            }
+        )
+    }
+    if (showEditDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditDialog = false },
+            title = { Text("Törlés szerkeztése") },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = editName,
+                        onValueChange = {
+                            editName = it
+                            editNameError = false
+                        },
+                        label = { Text("Név") },
+                        supportingText = {
+                            if (editNameError) {
+                                Text(
+                                    "A név megadása kötelező!",
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = editClassName,
+                        onValueChange = {
+                            editClassName = it
+                            editClassNameError = false
+                        },
+                        label = { Text("Osztály") },
+                        supportingText = {
+                            if (editClassNameError) {
+                                Text(
+                                    "Az osztály megadása kötelező!",
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showEditDialog = false
+                        onEdit(Student(student.id, editName, editClassName))
+                    }
+                ) {
+                    Text("Módosítás")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showEditDialog = false }
+                ) {
+                    Text("Mégsem")
+                }
+            }
+        )
     }
 }
 
 @Composable
-fun StudentAvatar(x0: String) {
-    TODO("Not yet implemented")
+fun StudentAvatar(name: String) {
+    //monogram type shi
+    val initials = name.split(" ")
+        .filter { it.isNotBlank() }.take(2)
+        .mapNotNull { it.firstOrNull() }
+        .joinToString ( "" )
+        .uppercase()
+    Box (
+        modifier = Modifier
+            .size(52.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.primary),
+        contentAlignment = Alignment.Center
+    ) { Text(
+        initials,
+        color = MaterialTheme.colorScheme.onPrimary,
+        fontWeight = FontWeight.Bold
+        )
+    }
 }
